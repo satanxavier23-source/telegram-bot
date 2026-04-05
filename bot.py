@@ -3,7 +3,7 @@ import yt_dlp
 import os
 import time
 
-BOT_TOKEN = os.getenv("8623388098:AAGY5lF3kcbAN25K_ZZ5IzzEt0ddcs38RIQ")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
