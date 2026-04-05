@@ -1,7 +1,6 @@
 import telebot
 import yt_dlp
 import os
-import time
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
@@ -16,7 +15,7 @@ def start(message):
     )
 
 
-def download_video(url, chat_id, msg_id):
+def download_video(url, chat_id):
     status_msg = bot.send_message(chat_id, "⬇️ Downloading...")
 
     def progress_hook(d):
@@ -35,7 +34,8 @@ def download_video(url, chat_id, msg_id):
         'outtmpl': 'video.%(ext)s',
         'format': 'best',
         'progress_hooks': [progress_hook],
-        'quiet': True
+        'quiet': True,
+        'cookiefile': 'cookies.txt'   # 🔥 IMPORTANT
     }
 
     try:
@@ -49,24 +49,19 @@ def download_video(url, chat_id, msg_id):
                 break
 
         if file_name:
-            bot.edit_message_text(
-                "⬆️ Uploading...",
-                chat_id,
-                status_msg.message_id
-            )
+            bot.edit_message_text("⬆️ Uploading...", chat_id, status_msg.message_id)
 
             with open(file_name, 'rb') as video:
                 bot.send_video(chat_id, video)
 
             os.remove(file_name)
-
             bot.delete_message(chat_id, status_msg.message_id)
 
         else:
-            bot.send_message(chat_id, "Download failed ❌")
+            bot.send_message(chat_id, "❌ Download failed")
 
     except Exception as e:
-        bot.send_message(chat_id, f"Error: {e}")
+        bot.send_message(chat_id, "❌ Instagram blocked / Login required")
 
 
 @bot.message_handler(func=lambda message: True)
@@ -74,9 +69,9 @@ def downloader(message):
     url = message.text
 
     if "instagram.com" in url:
-        download_video(url, message.chat.id, message.message_id)
+        download_video(url, message.chat.id)
     else:
-        bot.reply_to(message, "Send valid Instagram link ❌")
+        bot.reply_to(message, "❌ Send valid Instagram link")
 
 
 print("Bot running...")
