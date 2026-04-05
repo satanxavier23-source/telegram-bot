@@ -1,8 +1,14 @@
 import telebot
 import yt_dlp
 import os
+import time
+import threading
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+
+if not BOT_TOKEN:
+    print("BOT_TOKEN missing")
+    exit()
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
@@ -11,12 +17,16 @@ bot = telebot.TeleBot(BOT_TOKEN)
 def start(message):
     bot.reply_to(
         message,
-        "Send Instagram Reel/Post/Story link 📥\nBot will download and send video 🎬"
+        "Send Instagram Reel/Post link 📥\nBot will download and send video 🎬"
     )
 
 
 def download_video(url, chat_id):
     status_msg = bot.send_message(chat_id, "⬇️ Downloading...")
+
+    # 🔥 unique filename
+    unique_id = str(time.time()).replace(".", "")
+    filename = f"video_{unique_id}.mp4"
 
     def progress_hook(d):
         if d['status'] == 'downloading':
@@ -31,11 +41,11 @@ def download_video(url, chat_id):
                 pass
 
     ydl_opts = {
-        'outtmpl': 'video.%(ext)s',
+        'outtmpl': f'video_{unique_id}.%(ext)s',
         'format': 'best',
         'progress_hooks': [progress_hook],
         'quiet': True,
-        'cookiefile': 'cookies.txt'   # 🔥 IMPORTANT
+        'cookiefile': 'cookies.txt'
     }
 
     try:
@@ -44,7 +54,7 @@ def download_video(url, chat_id):
 
         file_name = None
         for file in os.listdir():
-            if file.startswith("video"):
+            if file.startswith(f"video_{unique_id}"):
                 file_name = file
                 break
 
@@ -69,7 +79,11 @@ def downloader(message):
     url = message.text
 
     if "instagram.com" in url:
-        download_video(url, message.chat.id)
+        # 🔥 threading for multiple users
+        threading.Thread(
+            target=download_video,
+            args=(url, message.chat.id)
+        ).start()
     else:
         bot.reply_to(message, "❌ Send valid Instagram link")
 
