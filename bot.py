@@ -12,20 +12,21 @@ bot = telebot.TeleBot(BOT_TOKEN)
 def start(message):
     bot.reply_to(
         message,
-        "Send Instagram Reel/Post/Story or Terabox link 📥"
+        "Send Instagram Reel/Post/Story link 📥\nBot will download and send video 🎬"
     )
 
 
 def download_video(url, chat_id, msg_id):
+    status_msg = bot.send_message(chat_id, "⬇️ Downloading...")
 
     def progress_hook(d):
         if d['status'] == 'downloading':
             percent = d.get('_percent_str', '0%')
             try:
                 bot.edit_message_text(
-                    f"⏳ Downloading {percent}",
+                    f"⬇️ Downloading {percent}",
                     chat_id,
-                    msg_id
+                    status_msg.message_id
                 )
             except:
                 pass
@@ -37,19 +38,46 @@ def download_video(url, chat_id, msg_id):
         'quiet': True
     }
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        ydl.download([url])
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
 
-    for file in os.listdir():
-        if file.startswith("video"):
-            return file
+        file_name = None
+        for file in os.listdir():
+            if file.startswith("video"):
+                file_name = file
+                break
+
+        if file_name:
+            bot.edit_message_text(
+                "⬆️ Uploading...",
+                chat_id,
+                status_msg.message_id
+            )
+
+            with open(file_name, 'rb') as video:
+                bot.send_video(chat_id, video)
+
+            os.remove(file_name)
+
+            bot.delete_message(chat_id, status_msg.message_id)
+
+        else:
+            bot.send_message(chat_id, "Download failed ❌")
+
+    except Exception as e:
+        bot.send_message(chat_id, f"Error: {e}")
 
 
 @bot.message_handler(func=lambda message: True)
 def downloader(message):
-
     url = message.text
 
-    try:
+    if "instagram.com" in url:
+        download_video(url, message.chat.id, message.message_id)
+    else:
+        bot.reply_to(message, "Send valid Instagram link ❌")
 
-        # Downloading message
+
+print("Bot running...")
+bot.infinity_polling()
