@@ -1,3 +1,5 @@
 pyTelegramBotAPI
 yt-dlp
 requests
+urllib3
+certifi
