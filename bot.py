@@ -6,10 +6,6 @@ import threading
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-if not BOT_TOKEN:
-    print("BOT_TOKEN missing")
-    exit()
-
 bot = telebot.TeleBot(BOT_TOKEN)
 
 
@@ -17,75 +13,66 @@ bot = telebot.TeleBot(BOT_TOKEN)
 def start(message):
     bot.reply_to(
         message,
-        "Send Instagram Reel/Post link 📥\nBot will download and send video 🎬"
+        "Instagram link ayakkuka 📥\nReel / Photo / Video / Carousel download cheyyam 🎬📷"
     )
 
 
-def download_video(url, chat_id):
-    status_msg = bot.send_message(chat_id, "⬇️ Downloading...")
+def download_instagram(url, chat_id):
+    status = bot.send_message(chat_id, "⬇️ Downloading...")
 
-    # 🔥 unique filename
-    unique_id = str(time.time()).replace(".", "")
-    filename = f"video_{unique_id}.mp4"
-
-    def progress_hook(d):
-        if d['status'] == 'downloading':
-            percent = d.get('_percent_str', '0%')
-            try:
-                bot.edit_message_text(
-                    f"⬇️ Downloading {percent}",
-                    chat_id,
-                    status_msg.message_id
-                )
-            except:
-                pass
+    unique = str(time.time()).replace(".", "")
 
     ydl_opts = {
-        'outtmpl': f'video_{unique_id}.%(ext)s',
+        'outtmpl': f'download_{unique}_%(title)s.%(ext)s',
         'format': 'best',
-        'progress_hooks': [progress_hook],
         'quiet': True,
-        'cookiefile': 'cookies.txt'
+        'cookiefile': 'cookies.txt',
+        'noplaylist': True
     }
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
+            info = ydl.extract_info(url, download=True)
 
-        file_name = None
+        bot.edit_message_text("⬆️ Uploading...", chat_id, status.message_id)
+
+        files = []
+
         for file in os.listdir():
-            if file.startswith(f"video_{unique_id}"):
-                file_name = file
-                break
+            if file.startswith(f"download_{unique}"):
+                files.append(file)
 
-        if file_name:
-            bot.edit_message_text("⬆️ Uploading...", chat_id, status_msg.message_id)
+        caption = ""
 
-            with open(file_name, 'rb') as video:
-                bot.send_video(chat_id, video)
+        if 'description' in info and info['description']:
+            caption = info['description'][:1000]
 
-            os.remove(file_name)
-            bot.delete_message(chat_id, status_msg.message_id)
+        for file in files:
+            with open(file, 'rb') as f:
+                if file.endswith(".mp4"):
+                    bot.send_video(chat_id, f, caption=caption)
+                else:
+                    bot.send_photo(chat_id, f, caption=caption)
 
-        else:
-            bot.send_message(chat_id, "❌ Download failed")
+            os.remove(file)
+
+        bot.delete_message(chat_id, status.message_id)
 
     except Exception as e:
-        bot.send_message(chat_id, "❌ Instagram blocked / Login required")
+        bot.send_message(chat_id, "❌ Instagram blocked or cookies expired")
 
 
 @bot.message_handler(func=lambda message: True)
-def downloader(message):
+def main(message):
     url = message.text
 
     if "instagram.com" in url:
-        # 🔥 threading for multiple users
         threading.Thread(
-            target=download_video,
+            target=download_instagram,
             args=(url, message.chat.id)
         ).start()
     else:
-        bot.reply_to(message, "❌ Send valid Instagram link")
+        bot.reply_to(message, "❌ Instagram link ayakkuka")
 
 
 print("Bot running...")
