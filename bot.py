@@ -3,12 +3,9 @@ import yt_dlp
 import os
 import time
 import threading
+import requests
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-
-if not BOT_TOKEN:
-    print("BOT_TOKEN missing")
-    exit()
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
@@ -17,22 +14,19 @@ bot = telebot.TeleBot(BOT_TOKEN)
 def start(message):
     bot.reply_to(
         message,
-        "Instagram Downloader Bot 🤖\n\n"
+        "Multi Downloader Bot 🤖\n\n"
         "Send:\n"
-        "Reel 🎬\n"
-        "Photo 📷\n"
-        "Video 🎥\n"
-        "Carousel 📂\n"
-        "Story 📱\n"
-        "Highlights ⭐"
+        "Instagram link 📷\n"
+        "YouTube link 🎥\n"
+        "TeraBox link 📂"
     )
 
 
-def download_instagram(url, chat_id):
+def download_video(url, chat_id):
 
-    status_msg = bot.send_message(chat_id, "⬇️ Downloading...")
+    status = bot.send_message(chat_id, "⬇️ Downloading...")
 
-    unique_id = str(time.time()).replace(".", "")
+    unique = str(time.time()).replace(".", "")
 
     def progress_hook(d):
         if d['status'] == 'downloading':
@@ -41,57 +35,84 @@ def download_instagram(url, chat_id):
                 bot.edit_message_text(
                     f"⬇️ Downloading {percent}",
                     chat_id,
-                    status_msg.message_id
+                    status.message_id
                 )
             except:
                 pass
 
     ydl_opts = {
-        'outtmpl': f'insta_{unique_id}_%(title)s.%(ext)s',
+        'outtmpl': f'download_{unique}_%(title)s.%(ext)s',
         'format': 'best[ext=mp4]/best',
         'quiet': True,
-        'noplaylist': False,
         'progress_hooks': [progress_hook],
         'cookiefile': 'cookies.txt',
-        'nocheckcertificate': True
+        'nocheckcertificate': True,
+        'geo_bypass': True
     }
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
 
-        bot.edit_message_text("⬆️ Uploading...", chat_id, status_msg.message_id)
-
-        files = []
+        bot.edit_message_text("⬆️ Uploading...", chat_id, status.message_id)
 
         for file in os.listdir():
-            if file.startswith(f"insta_{unique_id}"):
-                files.append(file)
+            if file.startswith(f"download_{unique}"):
 
-        caption = ""
+                with open(file, 'rb') as f:
 
-        if info.get("description"):
-            caption = info["description"][:1000]
+                    if file.endswith(".mp4"):
+                        bot.send_video(chat_id, f)
+                    elif file.endswith(".jpg"):
+                        bot.send_photo(chat_id, f)
+                    else:
+                        bot.send_document(chat_id, f)
 
-        for file in files:
+                os.remove(file)
 
-            with open(file, 'rb') as f:
+        bot.delete_message(chat_id, status.message_id)
 
-                if file.endswith(".mp4"):
-                    bot.send_video(chat_id, f, caption=caption)
+    except:
+        bot.send_message(chat_id, "❌ Download failed")
 
-                elif file.endswith(".jpg") or file.endswith(".png"):
-                    bot.send_photo(chat_id, f, caption=caption)
 
-                else:
-                    bot.send_document(chat_id, f)
+# 🔥 TeraBox simple downloader
+def terabox_download(url, chat_id):
 
-            os.remove(file)  # auto delete
+    msg = bot.send_message(chat_id, "🔗 Fetching TeraBox file...")
 
-        bot.delete_message(chat_id, status_msg.message_id)
+    try:
+        api = f"https://terabox-api.vercel.app/api?url={url}"
+        res = requests.get(api).json()
 
-    except Exception as e:
-        bot.send_message(chat_id, "❌ Download failed / Cookies expired")
+        if res["status"]:
+
+            download_link = res["download"]
+
+            bot.edit_message_text(
+                "⬇️ Downloading TeraBox...",
+                chat_id,
+                msg.message_id
+            )
+
+            file = requests.get(download_link)
+
+            filename = f"terabox_{time.time()}.mp4"
+
+            with open(filename, "wb") as f:
+                f.write(file.content)
+
+            bot.send_video(chat_id, open(filename, "rb"))
+
+            os.remove(filename)
+
+            bot.delete_message(chat_id, msg.message_id)
+
+        else:
+            bot.send_message(chat_id, "❌ TeraBox link error")
+
+    except:
+        bot.send_message(chat_id, "❌ TeraBox failed")
 
 
 @bot.message_handler(func=lambda message: True)
@@ -99,15 +120,22 @@ def main(message):
 
     url = message.text
 
-    if "instagram.com" in url:
+    if "instagram.com" in url or "youtube.com" in url or "youtu.be" in url:
 
         threading.Thread(
-            target=download_instagram,
+            target=download_video,
+            args=(url, message.chat.id)
+        ).start()
+
+    elif "terabox" in url or "1024tera" in url:
+
+        threading.Thread(
+            target=terabox_download,
             args=(url, message.chat.id)
         ).start()
 
     else:
-        bot.reply_to(message, "❌ Send Instagram link")
+        bot.reply_to(message, "❌ Send valid link")
 
 
 print("Bot running...")
