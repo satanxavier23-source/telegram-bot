@@ -10,6 +10,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 bot = telebot.TeleBot(BOT_TOKEN)
 
 
+# start
 @bot.message_handler(commands=['start'])
 def start(message):
     bot.reply_to(
@@ -18,15 +19,34 @@ def start(message):
         "Send:\n"
         "Instagram link 📷\n"
         "YouTube link 🎥\n"
-        "TeraBox link 📂"
+        "TeraBox link 📂\n\n"
+        "⚠️ Files auto delete after 1 hour"
     )
 
 
+# auto delete
+def auto_delete(chat_id, message_id):
+
+    time.sleep(3600)
+
+    try:
+        bot.delete_message(chat_id, message_id)
+
+        bot.send_message(
+            chat_id,
+            "🗑 File deleted automatically after 1 hour ⏰"
+        )
+
+    except:
+        pass
+
+
+# download video (instagram + youtube)
 def download_video(url, chat_id):
 
     status = bot.send_message(chat_id, "⬇️ Downloading...")
 
-    unique = str(time.time()).replace(".", "")
+    unique = str(int(time.time()))
 
     def progress_hook(d):
         if d['status'] == 'downloading':
@@ -47,26 +67,57 @@ def download_video(url, chat_id):
         'progress_hooks': [progress_hook],
         'cookiefile': 'cookies.txt',
         'nocheckcertificate': True,
-        'geo_bypass': True
+        'geo_bypass': True,
+        'no_warnings': True,
+        'ignoreerrors': True,
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0'
+        }
     }
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
+            ydl.extract_info(url, download=True)
 
         bot.edit_message_text("⬆️ Uploading...", chat_id, status.message_id)
 
         for file in os.listdir():
+
             if file.startswith(f"download_{unique}"):
 
                 with open(file, 'rb') as f:
 
                     if file.endswith(".mp4"):
-                        bot.send_video(chat_id, f)
+
+                        sent = bot.send_video(chat_id, f)
+
+                        bot.send_message(
+                            chat_id,
+                            "⚠️ File will be deleted after 1 hour ⏰"
+                        )
+
+                        threading.Thread(
+                            target=auto_delete,
+                            args=(chat_id, sent.message_id)
+                        ).start()
+
                     elif file.endswith(".jpg"):
-                        bot.send_photo(chat_id, f)
+
+                        sent = bot.send_photo(chat_id, f)
+
+                        threading.Thread(
+                            target=auto_delete,
+                            args=(chat_id, sent.message_id)
+                        ).start()
+
                     else:
-                        bot.send_document(chat_id, f)
+
+                        sent = bot.send_document(chat_id, f)
+
+                        threading.Thread(
+                            target=auto_delete,
+                            args=(chat_id, sent.message_id)
+                        ).start()
 
                 os.remove(file)
 
@@ -76,7 +127,7 @@ def download_video(url, chat_id):
         bot.send_message(chat_id, "❌ Download failed")
 
 
-# 🔥 TeraBox simple downloader
+# TeraBox downloader
 def terabox_download(url, chat_id):
 
     msg = bot.send_message(chat_id, "🔗 Fetching TeraBox file...")
@@ -97,12 +148,22 @@ def terabox_download(url, chat_id):
 
             file = requests.get(download_link)
 
-            filename = f"terabox_{time.time()}.mp4"
+            filename = f"terabox_{int(time.time())}.mp4"
 
             with open(filename, "wb") as f:
                 f.write(file.content)
 
-            bot.send_video(chat_id, open(filename, "rb"))
+            sent = bot.send_video(chat_id, open(filename, "rb"))
+
+            bot.send_message(
+                chat_id,
+                "⚠️ File will be deleted after 1 hour ⏰"
+            )
+
+            threading.Thread(
+                target=auto_delete,
+                args=(chat_id, sent.message_id)
+            ).start()
 
             os.remove(filename)
 
@@ -115,10 +176,11 @@ def terabox_download(url, chat_id):
         bot.send_message(chat_id, "❌ TeraBox failed")
 
 
+# main handler
 @bot.message_handler(func=lambda message: True)
 def main(message):
 
-    url = message.text
+    url = message.text.strip()
 
     if "instagram.com" in url or "youtube.com" in url or "youtu.be" in url:
 
@@ -135,7 +197,7 @@ def main(message):
         ).start()
 
     else:
-        bot.reply_to(message, "❌ Send valid link")
+        bot.reply_to(message, "❌ Send valid Instagram / YouTube / TeraBox link")
 
 
 print("Bot running...")
