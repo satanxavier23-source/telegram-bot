@@ -29,8 +29,6 @@ def start(message):
         "📥 Instagram Reel Downloader Bot 📥\n\n"
         "➪ Send Instagram Reel link 🖇\n"
         "➪ ⚡ Fast Download\n"
-        "➪ 📊 Progress Bar\n"
-        "➪ 👥 Multiple Users\n"
         "➪ ⏱ Auto delete after 1 hour\n\n"
         "➪ Developer : 𝐕𝐊 👨🏻‍💻"
     )
