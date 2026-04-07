@@ -8,21 +8,18 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
-# start message
+DOWNLOAD_STICKER = "AAMCAgADGQEAARzg3WnUtNmZvyLqgBJF9b5kwpYWBhI3AAIsAAMkcWIaxSDmA-94_OQBAAdtAAM7BA"
+UPLOAD_STICKER = "AAMCBQADGQEAARzg4mnUtZgSNRLAClmV-R6DvVfx8X3xAAKBCAACeAEoVKDdiyoydhyxAQAHbQADOwQ"
+
+
 @bot.message_handler(commands=['start'])
 def start(message):
     bot.reply_to(
         message,
-        "📥 Instagram Video Downloader Bot\n\n"
-        "Send Instagram link\n"
-        "• Reel\n"
-        "• Post\n"
-        "• Story\n\n"
-        "⏱ Auto delete after 1 hour"
+        "📥 Instagram Downloader Bot\n\nSend Instagram link\n⏱ Auto delete after 1 hour"
     )
 
 
-# auto delete
 def auto_delete(chat_id, message_id):
     time.sleep(3600)
     try:
@@ -32,10 +29,10 @@ def auto_delete(chat_id, message_id):
         pass
 
 
-# download function
 def download_instagram(url, chat_id):
 
-    status = bot.send_message(chat_id, "⬇️ Downloading...")
+    # downloading sticker
+    status = bot.send_sticker(chat_id, DOWNLOAD_STICKER)
 
     unique = str(int(time.time()))
 
@@ -55,7 +52,8 @@ def download_instagram(url, chat_id):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.extract_info(url, download=True)
 
-        bot.edit_message_text("⬆️ Uploading...", chat_id, status.message_id)
+        # uploading sticker
+        bot.send_sticker(chat_id, UPLOAD_STICKER)
 
         files_found = False
 
@@ -89,34 +87,16 @@ def download_instagram(url, chat_id):
 
                 os.remove(file)
 
-        if not files_found:
-            bot.send_message(
-                chat_id,
-                "❌ File not found\n\n"
-                "Reason:\n"
-                "• cookies expired\n"
-                "• private account\n"
-                "• wrong link"
-            )
-
         bot.delete_message(chat_id, status.message_id)
 
+        if not files_found:
+            bot.send_message(chat_id, "❌ Download failed")
+
     except Exception as e:
-
-        bot.send_message(
-            chat_id,
-            "❌ Download failed\n\n"
-            "Reason:\n"
-            "• cookies expired\n"
-            "• private account\n"
-            "• wrong story link\n"
-            "• login required"
-        )
-
+        bot.send_message(chat_id, "❌ Download failed")
         print(e)
 
 
-# message handler
 @bot.message_handler(func=lambda message: True)
 def main(message):
 
