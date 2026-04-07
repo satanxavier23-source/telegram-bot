@@ -6,10 +6,6 @@ import threading
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-if not BOT_TOKEN:
-    print("BOT_TOKEN missing")
-    exit()
-
 bot = telebot.TeleBot(BOT_TOKEN)
 
 # stickers
@@ -24,17 +20,16 @@ def start(message):
         message,
         "Hello 🙋‍♂️\n\n"
         "📥 Instagram Video Downloader Bot 📥\n\n"
-        "➪ Send Instagram link 🖇\n\n"
-        "➪ Reel ❤️\n\n"
+        "➪ Send Instagram link 🖇\n"
+        "➪ Reel ❤️\n"
         "➪ ⏱ Auto delete after 1 hour 😊\n\n"
         "➪ Developer : 𝐕𝐊 👨🏻‍💻"
     )
 
 
-# auto delete
+# auto delete function
 def auto_delete(chat_id, message_id):
     time.sleep(3600)
-
     try:
         bot.delete_message(chat_id, message_id)
         bot.send_message(chat_id, "🗑 File deleted after 1 hour")
@@ -42,40 +37,37 @@ def auto_delete(chat_id, message_id):
         pass
 
 
-# download
+# download function
 def download_instagram(url, chat_id):
 
-    # downloading sticker
     status = bot.send_sticker(chat_id, DOWNLOAD_STICKER)
 
     unique = str(int(time.time()))
 
     ydl_opts = {
-        'outtmpl': f'insta_{unique}_%(title)s.%(ext)s',
+        'outtmpl': f'insta_{unique}.%(ext)s',
         'format': 'best',
         'cookiefile': 'instagram_cookies.txt',
         'quiet': True,
         'nocheckcertificate': True,
         'geo_bypass': True,
         'http_headers': {
-            'User-Agent': 'Mozilla/5.0'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
         }
     }
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.extract_info(url, download=True)
+            ydl.download([url])
 
-        # uploading sticker
         bot.send_sticker(chat_id, UPLOAD_STICKER)
 
-        files_found = False
+        sent_message = None
 
         for file in os.listdir():
 
             if file.startswith(f"insta_{unique}"):
 
-                files_found = True
                 size = os.path.getsize(file)
 
                 with open(file, 'rb') as f:
@@ -83,38 +75,34 @@ def download_instagram(url, chat_id):
                     if file.endswith(".mp4"):
 
                         if size < 50 * 1024 * 1024:
-                            sent = bot.send_video(chat_id, f)
+                            sent_message = bot.send_video(chat_id, f)
                         else:
-                            sent = bot.send_document(chat_id, f)
+                            sent_message = bot.send_document(chat_id, f)
 
-                    elif file.endswith(".jpg") or file.endswith(".png"):
-                        sent = bot.send_photo(chat_id, f)
+                    elif file.endswith(".jpg"):
+                        sent_message = bot.send_photo(chat_id, f)
 
                     else:
-                        sent = bot.send_document(chat_id, f)
-
-                # auto delete after 1 hour
-                threading.Thread(
-                    target=auto_delete,
-                    args=(chat_id, sent.message_id)
-                ).start()
+                        sent_message = bot.send_document(chat_id, f)
 
                 os.remove(file)
 
         bot.delete_message(chat_id, status.message_id)
 
-        if not files_found:
-            bot.send_message(
-                chat_id,
-                "❌ Private account / Cookies expired / File not found"
-            )
+        if sent_message:
+            threading.Thread(
+                target=auto_delete,
+                args=(chat_id, sent_message.message_id)
+            ).start()
+        else:
+            bot.send_message(chat_id, "❌ Private account / Cookies expired / File not found")
 
     except Exception as e:
-        bot.send_message(chat_id, "❌ Download failed")
         print(e)
+        bot.send_message(chat_id, "❌ Download failed")
 
 
-# main
+# message handler
 @bot.message_handler(func=lambda message: True)
 def main(message):
 
@@ -128,10 +116,7 @@ def main(message):
         ).start()
 
     else:
-        bot.reply_to(
-            message,
-            "❌ Send Instagram link only"
-        )
+        bot.reply_to(message, "❌ Send Instagram link only")
 
 
 print("Bot running...")
