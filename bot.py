@@ -13,24 +13,24 @@ if not BOT_TOKEN:
 bot = telebot.TeleBot(BOT_TOKEN)
 
 
-# start
+# START
 @bot.message_handler(commands=['start'])
 def start(message):
     bot.reply_to(
         message,
         "Instagram Downloader Bot 🤖\n\n"
-        "Send Instagram:\n"
+        "Send Instagram link:\n"
         "Reel 🎬\n"
         "Photo 📷\n"
         "Video 🎥\n"
         "Carousel 📂\n"
         "Story 📱\n"
         "Highlights ⭐\n\n"
-        "⚠️ Files auto delete after 1 hour"
+        "⚠️ File auto delete after 1 hour"
     )
 
 
-# auto delete
+# AUTO DELETE
 def auto_delete(chat_id, message_id):
 
     time.sleep(3600)
@@ -47,7 +47,7 @@ def auto_delete(chat_id, message_id):
         pass
 
 
-# download
+# DOWNLOAD FUNCTION
 def download_instagram(url, chat_id):
 
     status = bot.send_message(chat_id, "⬇️ Downloading...")
@@ -57,6 +57,7 @@ def download_instagram(url, chat_id):
     def progress_hook(d):
         if d['status'] == 'downloading':
             percent = d.get('_percent_str', '0%')
+
             try:
                 bot.edit_message_text(
                     f"⬇️ Downloading {percent}",
@@ -68,7 +69,7 @@ def download_instagram(url, chat_id):
 
     ydl_opts = {
         'outtmpl': f'insta_{unique}_%(title)s.%(ext)s',
-        'format': 'best[ext=mp4]/best',
+        'format': 'best[filesize<50M]/best',
         'quiet': True,
         'progress_hooks': [progress_hook],
         'cookiefile': 'cookies.txt',
@@ -87,14 +88,17 @@ def download_instagram(url, chat_id):
 
         bot.edit_message_text("⬆️ Uploading...", chat_id, status.message_id)
 
+        files_found = False
+
         for file in os.listdir():
 
             if file.startswith(f"insta_{unique}"):
 
+                files_found = True
+
                 with open(file, 'rb') as f:
 
                     if file.endswith(".mp4"):
-
                         sent = bot.send_video(chat_id, f)
 
                         bot.send_message(
@@ -102,13 +106,7 @@ def download_instagram(url, chat_id):
                             "⚠️ Video will be deleted after 1 hour ⏰"
                         )
 
-                        threading.Thread(
-                            target=auto_delete,
-                            args=(chat_id, sent.message_id)
-                        ).start()
-
                     elif file.endswith(".jpg") or file.endswith(".png"):
-
                         sent = bot.send_photo(chat_id, f)
 
                         bot.send_message(
@@ -116,32 +114,29 @@ def download_instagram(url, chat_id):
                             "⚠️ Photo will be deleted after 1 hour ⏰"
                         )
 
-                        threading.Thread(
-                            target=auto_delete,
-                            args=(chat_id, sent.message_id)
-                        ).start()
-
                     else:
-
                         sent = bot.send_document(chat_id, f)
 
-                        threading.Thread(
-                            target=auto_delete,
-                            args=(chat_id, sent.message_id)
-                        ).start()
+                threading.Thread(
+                    target=auto_delete,
+                    args=(chat_id, sent.message_id)
+                ).start()
 
                 os.remove(file)
 
+        if not files_found:
+            bot.send_message(chat_id, "❌ File too large or private content")
+
         bot.delete_message(chat_id, status.message_id)
 
-    except:
+    except Exception as e:
         bot.send_message(
             chat_id,
             "❌ Download failed or cookies expired"
         )
 
 
-# main
+# MAIN
 @bot.message_handler(func=lambda message: True)
 def main(message):
 
