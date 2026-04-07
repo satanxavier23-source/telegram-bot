@@ -17,16 +17,17 @@ DOWNLOAD_STICKER = "CAACAgIAAxkBAAEc4N1p1LTZmb8i6oASRfW-ZMKWFgYSNwACLAADJHFiGsUg
 UPLOAD_STICKER = "CAACAgUAAxkBAAEc4OJp1LWYEjUSwApZlfkeg71X8fF98QACgQgAAngBKFSg3YsqMnYcsTsE"
 
 
-# start
+# start message
 @bot.message_handler(commands=['start'])
 def start(message):
     bot.reply_to(
         message,
-        "📥 Instagram Downloader Bot VK \n\n"
-        "Send Instagram link\n"
-        "⬇️ Downloading sticker\n"
-        "⬆️ Uploading sticker\n"
-        "🗑 Auto delete after 1 hour"
+        "Hello 🙋‍♂️\n\n"
+        "📥 Instagram Video Downloader Bot 📥\n\n"
+        "➪ Send Instagram link 🖇\n\n"
+        "➪ Reel ❤️\n\n"
+        "➪ ⏱ Auto delete after 1 hour 😊\n\n"
+        "➪ Developer : 𝐕𝐊 👨🏻‍💻"
     )
 
 
@@ -75,12 +76,10 @@ def download_instagram(url, chat_id):
             if file.startswith(f"insta_{unique}"):
 
                 files_found = True
-
                 size = os.path.getsize(file)
 
                 with open(file, 'rb') as f:
 
-                    # video
                     if file.endswith(".mp4"):
 
                         if size < 50 * 1024 * 1024:
@@ -88,14 +87,13 @@ def download_instagram(url, chat_id):
                         else:
                             sent = bot.send_document(chat_id, f)
 
-                    # photo
                     elif file.endswith(".jpg") or file.endswith(".png"):
                         sent = bot.send_photo(chat_id, f)
 
                     else:
                         sent = bot.send_document(chat_id, f)
 
-                # auto delete
+                # auto delete after 1 hour
                 threading.Thread(
                     target=auto_delete,
                     args=(chat_id, sent.message_id)
@@ -108,7 +106,7 @@ def download_instagram(url, chat_id):
         if not files_found:
             bot.send_message(
                 chat_id,
-                "❌ Download failed\nCookies expired or private account"
+                "❌ Private account / Cookies expired / File not found"
             )
 
     except Exception as e:
