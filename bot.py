@@ -6,22 +6,34 @@ import threading
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
+if not BOT_TOKEN:
+    print("BOT_TOKEN missing")
+    exit()
+
 bot = telebot.TeleBot(BOT_TOKEN)
 
-DOWNLOAD_STICKER = "AAMCAgADGQEAARzg3WnUtNmZvyLqgBJF9b5kwpYWBhI3AAIsAAMkcWIaxSDmA-94_OQBAAdtAAM7BA"
-UPLOAD_STICKER = "AAMCBQADGQEAARzg4mnUtZgSNRLAClmV-R6DvVfx8X3xAAKBCAACeAEoVKDdiyoydhyxAQAHbQADOwQ"
+# stickers
+DOWNLOAD_STICKER = "CAACAgIAAxkBAAEc4N1p1LTZmb8i6oASRfW-ZMKWFgYSNwACLAADJHFiGsUg5gPvePzkOwQ"
+UPLOAD_STICKER = "CAACAgUAAxkBAAEc4OJp1LWYEjUSwApZlfkeg71X8fF98QACgQgAAngBKFSg3YsqMnYcsTsE"
 
 
+# start
 @bot.message_handler(commands=['start'])
 def start(message):
     bot.reply_to(
         message,
-        "📥 Instagram Downloader Bot\n\nSend Instagram link\n⏱ Auto delete after 1 hour"
+        "📥 Instagram Downloader Bot VK \n\n"
+        "Send Instagram link\n"
+        "⬇️ Downloading sticker\n"
+        "⬆️ Uploading sticker\n"
+        "🗑 Auto delete after 1 hour"
     )
 
 
+# auto delete
 def auto_delete(chat_id, message_id):
     time.sleep(3600)
+
     try:
         bot.delete_message(chat_id, message_id)
         bot.send_message(chat_id, "🗑 File deleted after 1 hour")
@@ -29,6 +41,7 @@ def auto_delete(chat_id, message_id):
         pass
 
 
+# download
 def download_instagram(url, chat_id):
 
     # downloading sticker
@@ -67,6 +80,7 @@ def download_instagram(url, chat_id):
 
                 with open(file, 'rb') as f:
 
+                    # video
                     if file.endswith(".mp4"):
 
                         if size < 50 * 1024 * 1024:
@@ -74,12 +88,14 @@ def download_instagram(url, chat_id):
                         else:
                             sent = bot.send_document(chat_id, f)
 
+                    # photo
                     elif file.endswith(".jpg") or file.endswith(".png"):
                         sent = bot.send_photo(chat_id, f)
 
                     else:
                         sent = bot.send_document(chat_id, f)
 
+                # auto delete
                 threading.Thread(
                     target=auto_delete,
                     args=(chat_id, sent.message_id)
@@ -90,13 +106,17 @@ def download_instagram(url, chat_id):
         bot.delete_message(chat_id, status.message_id)
 
         if not files_found:
-            bot.send_message(chat_id, "❌ Download failed")
+            bot.send_message(
+                chat_id,
+                "❌ Download failed\nCookies expired or private account"
+            )
 
     except Exception as e:
         bot.send_message(chat_id, "❌ Download failed")
         print(e)
 
 
+# main
 @bot.message_handler(func=lambda message: True)
 def main(message):
 
@@ -110,7 +130,10 @@ def main(message):
         ).start()
 
     else:
-        bot.reply_to(message, "❌ Send Instagram link")
+        bot.reply_to(
+            message,
+            "❌ Send Instagram link only"
+        )
 
 
 print("Bot running...")
