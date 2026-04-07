@@ -21,27 +21,23 @@ def start(message):
         "Instagram Downloader Bot 🤖\n\n"
         "Send Instagram link:\n"
         "Reel 🎬\n"
-        "Photo 📷\n"
+        "Post 📷\n"
         "Video 🎥\n"
         "Carousel 📂\n"
         "Story 📱\n"
         "Highlights ⭐\n\n"
-        "⚠️ Files auto delete after 1 hour ⏰"
+        "🔒 Private account supported\n"
+        "🗑 Auto delete after 1 hour"
     )
 
 
-# AUTO DELETE FUNCTION
+# AUTO DELETE
 def auto_delete(chat_id, message_id):
-
     time.sleep(3600)
 
     try:
         bot.delete_message(chat_id, message_id)
-
-        bot.send_message(
-            chat_id,
-            "🗑 File deleted automatically after 1 hour"
-        )
+        bot.send_message(chat_id, "🗑 File deleted after 1 hour")
     except:
         pass
 
@@ -56,6 +52,7 @@ def download_instagram(url, chat_id):
     def progress_hook(d):
         if d['status'] == 'downloading':
             percent = d.get('_percent_str', '0%')
+
             try:
                 bot.edit_message_text(
                     f"⬇️ Downloading {percent}",
@@ -70,19 +67,19 @@ def download_instagram(url, chat_id):
         'format': 'best',
         'quiet': True,
         'progress_hooks': [progress_hook],
-        'cookiefile': 'cookies.txt',
+        'cookiefile': 'instagram_cookies.txt',
         'nocheckcertificate': True,
         'geo_bypass': True,
         'no_warnings': True,
-        'ignoreerrors': True,
+        'ignoreerrors': False,
         'http_headers': {
-            'User-Agent': 'Mozilla/5.0'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
         }
     }
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.extract_info(url, download=True)
+            info = ydl.extract_info(url, download=True)
 
         bot.edit_message_text("⬆️ Uploading...", chat_id, status.message_id)
 
@@ -93,13 +90,11 @@ def download_instagram(url, chat_id):
             if file.startswith(f"insta_{unique}"):
 
                 files_found = True
+                file_size = os.path.getsize(file)
 
-                file_path = file
-                file_size = os.path.getsize(file_path)
+                with open(file, 'rb') as f:
 
-                with open(file_path, 'rb') as f:
-
-                    # video
+                    # VIDEO
                     if file.endswith(".mp4"):
 
                         if file_size < 50 * 1024 * 1024:
@@ -109,17 +104,17 @@ def download_instagram(url, chat_id):
 
                         bot.send_message(
                             chat_id,
-                            "⚠️ Video will be deleted after 1 hour ⏰"
+                            "⚠️ Video will be deleted after 1 hour"
                         )
 
-                    # photo
+                    # PHOTO
                     elif file.endswith(".jpg") or file.endswith(".png"):
 
                         sent = bot.send_photo(chat_id, f)
 
                         bot.send_message(
                             chat_id,
-                            "⚠️ Photo will be deleted after 1 hour ⏰"
+                            "⚠️ Photo will be deleted after 1 hour"
                         )
 
                     else:
@@ -130,20 +125,26 @@ def download_instagram(url, chat_id):
                     args=(chat_id, sent.message_id)
                 ).start()
 
-                os.remove(file_path)
+                os.remove(file)
 
         if not files_found:
             bot.send_message(
                 chat_id,
-                "❌ Private account / cookies expired / file not found"
+                "❌ Private account / cookies expired / wrong link"
             )
 
         bot.delete_message(chat_id, status.message_id)
 
     except Exception as e:
+
         bot.send_message(
             chat_id,
-            "❌ Download failed or cookies expired"
+            "❌ Download failed\n\n"
+            "Reason:\n"
+            "• cookies expired\n"
+            "• private account\n"
+            "• wrong story link\n"
+            "• login required"
         )
 
 
