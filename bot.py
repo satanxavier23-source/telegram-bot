@@ -35,7 +35,7 @@ def start(message):
     )
 
 
-# Auto delete video after 1 hour
+# Auto delete after 1 hour
 def auto_delete(chat_id, message_id):
     time.sleep(3600)
     try:
@@ -46,7 +46,7 @@ def auto_delete(chat_id, message_id):
         pass
 
 
-# Download Reel
+# Reel Download Function
 def download_reel(url, chat_id):
     try:
         download_sticker = bot.send_sticker(chat_id, DOWNLOAD_STICKER)
@@ -61,45 +61,29 @@ def download_reel(url, chat_id):
             'nocheckcertificate': True,
             'retries': 10,
             'fragment_retries': 10,
-            'concurrent_fragment_downloads': 5,
             'noplaylist': True,
             'http_headers': {
-                'User-Agent': 'Mozilla/5.0',
-                'Accept-Language': 'en-US,en;q=0.9'
-            },
-            'extractor_args': {
-                'instagram': {
-                    'skip': ['dash', 'hls']
-                }
+                'User-Agent': 'Mozilla/5.0'
             }
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
+            ydl.extract_info(url, download=True)
 
         bot.delete_message(chat_id, progress.message_id)
 
         bot.send_sticker(chat_id, COMPLETE_STICKER)
-
         upload_sticker = bot.send_sticker(chat_id, UPLOAD_STICKER)
 
-        caption = (
-            "Download by @inssavetome_bot\n"
-            "Automatic Delete After 1 Hour 🫂"
-        )
+        caption = "Download by @inssavetome_bot\nAutomatic Delete After 1 Hour 🫂"
 
         sent_message = None
 
         for file in os.listdir():
             if file.startswith(f"reel_{unique}"):
 
-                size = os.path.getsize(file)
-
                 with open(file, 'rb') as f:
-                    if size < 50 * 1024 * 1024:
-                        sent_message = bot.send_video(chat_id, f, caption=caption)
-                    else:
-                        sent_message = bot.send_document(chat_id, f, caption=caption)
+                    sent_message = bot.send_video(chat_id, f, caption=caption)
 
                 os.remove(file)
 
@@ -112,7 +96,7 @@ def download_reel(url, chat_id):
                 args=(chat_id, sent_message.message_id)
             ).start()
         else:
-            bot.send_message(chat_id, "❌ Reel not found or private")
+            bot.send_message(chat_id, "❌ Reel not found")
 
     except Exception as e:
         print(e)
@@ -124,6 +108,10 @@ def download_reel(url, chat_id):
 def main(message):
 
     url = message.text.strip()
+
+    # remove instagram short params
+    if "?" in url:
+        url = url.split("?")[0]
 
     if "instagram.com/reel" in url:
         executor.submit(download_reel, url, message.chat.id)
