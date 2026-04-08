@@ -1,76 +1,123 @@
-```python
 import telebot
 import yt_dlp
 import os
-import uuid
+import time
+import threading
+from concurrent.futures import ThreadPoolExecutor
 
-BOT_TOKEN = "YOUR_BOT_TOKEN"
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+
+if not BOT_TOKEN:
+    print("BOT_TOKEN missing")
+    exit()
 
 bot = telebot.TeleBot(BOT_TOKEN)
+executor = ThreadPoolExecutor(max_workers=5)
+
+# Stickers
+DOWNLOAD_STICKER = "CAACAgIAAxkBAAEc4N1p1LTZmb8i6oASRfW-ZMKWFgYSNwACLAADJHFiGsUg5gPvePzkOwQ"
+UPLOAD_STICKER = "CAACAgUAAxkBAAEc4OJp1LWYEjUSwApZlfkeg71X8fF98QACgQgAAngBKFSg3YsqMnYcsTsE"
+COMPLETE_STICKER = "CAACAgUAAxkBAAEc6YRp1g1Hs3dImubILNBijx9Lc-5MYgACiRIAAvvIyFT3g23-b9WjpjsE"
+DELETE_STICKER = "CAACAgUAAxkBAAEc6Ypp1g3oUEly079a3JebtyoYO8zUCQACryEAAkcLsFbGcJe3XAXz-zsE"
 
 
+# Start Message
 @bot.message_handler(commands=['start'])
 def start(message):
-    bot.send_message(
-        message.chat.id,
-        "👋 Welcome!\n\n🎬 Send TeraBox link to download video."
+    bot.reply_to(
+        message,
+        "Hello 🙋‍♂️\n\n"
+        "📥 Instagram Reel Downloader Bot 📥\n\n"
+        "➪ Send Instagram Reel link 🖇\n"
+        "➪ ⚡ Fast Download\n"
+        "➪ ⏱ Auto delete after 1 hour\n\n"
+        "Developer : 𝐕𝐊 👨🏻‍💻"
     )
 
 
-def download_video(url, filename):
-    ydl_opts = {
-        'outtmpl': filename,
-        'format': 'best',
-        'cookiefile': 'cookies.txt',
-        'quiet': True,
-        'noplaylist': True
-    }
-
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        ydl.download([url])
+# Auto delete after 1 hour
+def auto_delete(chat_id, message_id):
+    time.sleep(3600)
+    try:
+        bot.delete_message(chat_id, message_id)
+        bot.send_sticker(chat_id, DELETE_STICKER)
+        bot.send_message(chat_id, "🗑 Automatic Delete After 1 Hour 🫂")
+    except:
+        pass
 
 
+# Reel Download Function
+def download_reel(url, chat_id):
+    try:
+        download_sticker = bot.send_sticker(chat_id, DOWNLOAD_STICKER)
+        progress = bot.send_message(chat_id, "📥 Downloading Reel...")
+
+        unique = str(int(time.time()))
+
+        ydl_opts = {
+            'outtmpl': f'reel_{unique}.%(ext)s',
+            'format': 'mp4/best',
+            'quiet': True,
+            'nocheckcertificate': True,
+            'retries': 10,
+            'fragment_retries': 10,
+            'noplaylist': True,
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0'
+            }
+        }
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.extract_info(url, download=True)
+
+        bot.delete_message(chat_id, progress.message_id)
+
+        bot.send_sticker(chat_id, COMPLETE_STICKER)
+        upload_sticker = bot.send_sticker(chat_id, UPLOAD_STICKER)
+
+        caption = "Download by @inssavetome_bot\nAutomatic Delete After 1 Hour 🫂"
+
+        sent_message = None
+
+        for file in os.listdir():
+            if file.startswith(f"reel_{unique}"):
+
+                with open(file, 'rb') as f:
+                    sent_message = bot.send_video(chat_id, f, caption=caption)
+
+                os.remove(file)
+
+        bot.delete_message(chat_id, upload_sticker.message_id)
+        bot.delete_message(chat_id, download_sticker.message_id)
+
+        if sent_message:
+            threading.Thread(
+                target=auto_delete,
+                args=(chat_id, sent_message.message_id)
+            ).start()
+        else:
+            bot.send_message(chat_id, "❌ Reel not found")
+
+    except Exception as e:
+        print(e)
+        bot.send_message(chat_id, "❌ Download failed")
+
+
+# Message Handler
 @bot.message_handler(func=lambda message: True)
-def handle(message):
-
-    if not message.text:
-        return
+def main(message):
 
     url = message.text.strip()
 
-    if "terabox" in url or "1024terabox" in url:
+    # remove instagram short params
+    if "?" in url:
+        url = url.split("?")[0]
 
-        bot.reply_to(message, "⏳ Downloading video...")
-
-        unique_id = str(uuid.uuid4())
-        filename = f"video_{unique_id}.mp4"
-
-        try:
-            download_video(url, filename)
-
-            bot.send_message(message.chat.id, "📤 Uploading video...")
-
-            with open(filename, "rb") as video:
-                bot.send_video(message.chat.id, video)
-
-            os.remove(filename)
-
-            bot.send_message(message.chat.id, "✅ Done")
-
-        except Exception as e:
-            print("Error:", e)
-            bot.send_message(
-                message.chat.id,
-                "❌ Download failed\nTry another link or refresh cookies."
-            )
-
+    if "instagram.com/reel" in url:
+        executor.submit(download_reel, url, message.chat.id)
     else:
-        bot.send_message(
-            message.chat.id,
-            "⚠️ Send valid TeraBox link"
-        )
+        bot.reply_to(message, "❌ Send Instagram Reel link only")
 
 
-print("🤖 Bot running...")
+print("Bot running...")
 bot.infinity_polling()
-```
