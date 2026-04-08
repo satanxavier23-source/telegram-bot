@@ -14,12 +14,14 @@ if not BOT_TOKEN:
 bot = telebot.TeleBot(BOT_TOKEN)
 executor = ThreadPoolExecutor(max_workers=5)
 
-# stickers
+# Stickers
 DOWNLOAD_STICKER = "CAACAgIAAxkBAAEc4N1p1LTZmb8i6oASRfW-ZMKWFgYSNwACLAADJHFiGsUg5gPvePzkOwQ"
 UPLOAD_STICKER = "CAACAgUAAxkBAAEc4OJp1LWYEjUSwApZlfkeg71X8fF98QACgQgAAngBKFSg3YsqMnYcsTsE"
+COMPLETE_STICKER = "CAACAgUAAxkBAAEc6YRp1g1Hs3dImubILNBijx9Lc-5MYgACiRIAAvvIyFT3g23-b9WjpjsE"
+DELETE_STICKER = "CAACAgUAAxkBAAEc6Ypp1g3oUEly079a3JebtyoYO8zUCQACryEAAkcLsFbGcJe3XAXz-zsE"
 
 
-# start message
+# Start Message
 @bot.message_handler(commands=['start'])
 def start(message):
     bot.reply_to(
@@ -33,20 +35,21 @@ def start(message):
     )
 
 
-# auto delete
+# Auto Delete Video
 def auto_delete(chat_id, message_id):
     time.sleep(3600)
     try:
         bot.delete_message(chat_id, message_id)
+        bot.send_sticker(chat_id, DELETE_STICKER)
         bot.send_message(chat_id, "🗑 Automatic Delete After 1 Hour 🫂")
     except:
         pass
 
 
-# download reel
+# Download Reel
 def download_reel(url, chat_id):
     try:
-        sticker = bot.send_sticker(chat_id, DOWNLOAD_STICKER)
+        download_sticker_msg = bot.send_sticker(chat_id, DOWNLOAD_STICKER)
         progress_msg = bot.send_message(chat_id, "📥 Downloading Reel...")
 
         unique = str(int(time.time()))
@@ -84,6 +87,14 @@ def download_reel(url, chat_id):
                         chat_id,
                         progress_msg.message_id
                     )
+
+                    bot.send_sticker(chat_id, COMPLETE_STICKER)
+
+                    time.sleep(3)
+
+                    bot.delete_message(chat_id, progress_msg.message_id)
+                    bot.delete_message(chat_id, download_sticker_msg.message_id)
+
                 except:
                     pass
 
@@ -96,7 +107,7 @@ def download_reel(url, chat_id):
             'retries': 5,
             'noplaylist': True,
             'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+                'User-Agent': 'Mozilla/5.0',
                 'Accept-Language': 'en-US,en;q=0.9'
             },
             'extractor_args': {
@@ -110,7 +121,7 @@ def download_reel(url, chat_id):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
 
-        bot.send_sticker(chat_id, UPLOAD_STICKER)
+        upload_sticker_msg = bot.send_sticker(chat_id, UPLOAD_STICKER)
 
         caption_text = info.get("description", "")
 
@@ -126,7 +137,6 @@ def download_reel(url, chat_id):
             if file.startswith(f"reel_{unique}"):
 
                 size = os.path.getsize(file)
-
                 with open(file, 'rb') as f:
                     if size < 50 * 1024 * 1024:
                         sent_message = bot.send_video(chat_id, f, caption=caption)
@@ -135,7 +145,7 @@ def download_reel(url, chat_id):
 
                 os.remove(file)
 
-        bot.delete_message(chat_id, sticker.message_id)
+        bot.delete_message(chat_id, upload_sticker_msg.message_id)
 
         if sent_message:
             threading.Thread(
@@ -150,7 +160,7 @@ def download_reel(url, chat_id):
         bot.send_message(chat_id, "❌ Download failed")
 
 
-# handler
+# Handler
 @bot.message_handler(func=lambda message: True)
 def main(message):
 
