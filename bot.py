@@ -28,10 +28,8 @@ def start(message):
         "📥 Instagram Reel Downloader Bot 📥\n\n"
         "➪ Send Instagram Reel link 🖇\n"
         "➪ ⚡ Fast Download\n"
-        "➪ 📊 Progress Bar\n"
-        "➪ 👥 Multiple Users\n"
         "➪ ⏱ Auto delete after 1 hour\n\n"
-        "➪ Developer : 𝐕𝐊 👨🏻‍💻"
+        "Developer : 𝐕𝐊 👨🏻‍💻"
     )
 
 
@@ -40,7 +38,7 @@ def auto_delete(chat_id, message_id):
     time.sleep(3600)
     try:
         bot.delete_message(chat_id, message_id)
-        bot.send_message(chat_id, "🗑 File deleted after 1 hour")
+        bot.send_message(chat_id, "🗑 Automatic Delete After 1 Hour 🫂")
     except:
         pass
 
@@ -49,16 +47,30 @@ def auto_delete(chat_id, message_id):
 def download_reel(url, chat_id):
     try:
         sticker = bot.send_sticker(chat_id, DOWNLOAD_STICKER)
-        progress_msg = bot.send_message(chat_id, "📥 Downloading: 0%")
+        progress_msg = bot.send_message(chat_id, "📥 Downloading Reel...")
 
         unique = str(int(time.time()))
 
         def progress_hook(d):
             if d['status'] == 'downloading':
-                percent = d.get('_percent_str', '0%').strip()
+                percent_str = d.get('_percent_str', '0%').strip()
+
+                try:
+                    percent = int(percent_str.replace('%', '').strip())
+                except:
+                    percent = 0
+
+                bars = percent // 5
+                bar = "█" * bars + "░" * (20 - bars)
+
+                text = (
+                    "📥 Downloading Reel\n\n"
+                    f"{bar} {percent}%"
+                )
+
                 try:
                     bot.edit_message_text(
-                        f"📥 Downloading: {percent}",
+                        text,
                         chat_id,
                         progress_msg.message_id
                     )
@@ -68,7 +80,7 @@ def download_reel(url, chat_id):
             if d['status'] == 'finished':
                 try:
                     bot.edit_message_text(
-                        "✅ Download complete",
+                        "████████████████████ 100%\n\n✅ Download Complete",
                         chat_id,
                         progress_msg.message_id
                     )
@@ -83,7 +95,6 @@ def download_reel(url, chat_id):
             'concurrent_fragment_downloads': 5,
             'retries': 5,
             'noplaylist': True,
-            'progress_hooks': [progress_hook],
             'http_headers': {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
                 'Accept-Language': 'en-US,en;q=0.9'
@@ -92,7 +103,8 @@ def download_reel(url, chat_id):
                 'instagram': {
                     'skip': ['dash', 'hls']
                 }
-            }
+            },
+            'progress_hooks': [progress_hook]
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -100,12 +112,11 @@ def download_reel(url, chat_id):
 
         bot.send_sticker(chat_id, UPLOAD_STICKER)
 
-        username = info.get("uploader", "Instagram User")
         caption_text = info.get("description", "")
 
         caption = (
-            "Thank you for use me 😊\n\n"
-            f"👤 {username}\n\n"
+            "Download by @inssavetome_bot\n"
+            "Automatic Delete After 1 Hour 🫂\n\n"
             f"{caption_text[:900]}"
         )
 
