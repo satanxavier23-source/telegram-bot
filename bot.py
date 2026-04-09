@@ -21,21 +21,21 @@ COMPLETE_STICKER = "CAACAgUAAxkBAAEc6YRp1g1Hs3dImubILNBijx9Lc-5MYgACiRIAAvvIyFT3
 DELETE_STICKER = "CAACAgUAAxkBAAEc6Ypp1g3oUEly079a3JebtyoYO8zUCQACryEAAkcLsFbGcJe3XAXz-zsE"
 
 
-# Start Message
+# Start
 @bot.message_handler(commands=['start'])
 def start(message):
     bot.reply_to(
         message,
         "Hello 🙋‍♂️\n\n"
-        "📥 Instagram Reel Downloader Bot 📥\n\n"
-        "➪ Send Instagram Reel link 🖇\n"
+        "📥 Instagram Downloader Bot 📥\n\n"
+        "➪ Send Instagram Reel/Post/Story link 🖇\n"
         "➪ ⚡ Fast Download\n"
         "➪ ⏱ Auto delete after 1 hour\n\n"
         "Developer : 𝐕𝐊 👨🏻‍💻"
     )
 
 
-# Auto delete after 1 hour
+# Auto delete
 def auto_delete(chat_id, message_id):
     time.sleep(3600)
     try:
@@ -46,24 +46,30 @@ def auto_delete(chat_id, message_id):
         pass
 
 
-# Reel Download Function
-def download_reel(url, chat_id):
+# Download
+def download_instagram(url, chat_id):
     try:
         download_sticker = bot.send_sticker(chat_id, DOWNLOAD_STICKER)
-        progress = bot.send_message(chat_id, "📥 Downloading Reel...")
+        progress = bot.send_message(chat_id, "📥 Downloading...")
 
         unique = str(int(time.time()))
 
         ydl_opts = {
-            'outtmpl': f'reel_{unique}.%(ext)s',
-            'format': 'mp4/best',
+            'outtmpl': f'insta_{unique}_%(index)s.%(ext)s',
+            'format': 'best',
             'quiet': True,
             'nocheckcertificate': True,
             'retries': 10,
             'fragment_retries': 10,
             'noplaylist': True,
             'http_headers': {
-                'User-Agent': 'Mozilla/5.0'
+                'User-Agent': 'Mozilla/5.0',
+                'Referer': 'https://www.instagram.com/'
+            },
+            'extractor_args': {
+                'instagram': {
+                    'skip': ['dash', 'hls']
+                }
             }
         }
 
@@ -77,46 +83,55 @@ def download_reel(url, chat_id):
 
         caption = "Download by @inssavetome_bot\nAutomatic Delete After 1 Hour 🫂"
 
-        sent_message = None
+        files = []
 
         for file in os.listdir():
-            if file.startswith(f"reel_{unique}"):
+            if file.startswith(f"insta_{unique}"):
+                files.append(file)
 
-                with open(file, 'rb') as f:
-                    sent_message = bot.send_video(chat_id, f, caption=caption)
+        files.sort()
 
-                os.remove(file)
+        sent_messages = []
+
+        for file in files:
+            with open(file, 'rb') as f:
+
+                if file.endswith(".mp4"):
+                    msg = bot.send_video(chat_id, f, caption=caption)
+                else:
+                    msg = bot.send_photo(chat_id, f, caption=caption)
+
+                sent_messages.append(msg)
+
+            os.remove(file)
 
         bot.delete_message(chat_id, upload_sticker.message_id)
         bot.delete_message(chat_id, download_sticker.message_id)
 
-        if sent_message:
+        for msg in sent_messages:
             threading.Thread(
                 target=auto_delete,
-                args=(chat_id, sent_message.message_id)
+                args=(chat_id, msg.message_id)
             ).start()
-        else:
-            bot.send_message(chat_id, "❌ Reel not found")
 
     except Exception as e:
-        print(e)
+        print("ERROR:", e)
         bot.send_message(chat_id, "❌ Download failed")
 
 
-# Message Handler
+# Handler
 @bot.message_handler(func=lambda message: True)
 def main(message):
 
     url = message.text.strip()
 
-    # remove instagram short params
     if "?" in url:
         url = url.split("?")[0]
 
-    if "instagram.com/reel" in url:
-        executor.submit(download_reel, url, message.chat.id)
+    if "instagram.com" in url:
+        executor.submit(download_instagram, url, message.chat.id)
     else:
-        bot.reply_to(message, "❌ Send Instagram Reel link only")
+        bot.reply_to(message, "❌ Send Instagram link only")
 
 
 print("Bot running...")
