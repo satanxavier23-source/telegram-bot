@@ -1,63 +1,69 @@
 import telebot
 import yt_dlp
 import os
-import time
+import uuid
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-
-if not BOT_TOKEN:
-    print("BOT_TOKEN missing")
-    exit()
+BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"
 
 bot = telebot.TeleBot(BOT_TOKEN)
+
+# stickers
+DOWNLOADING_STICKER = "CAACAgUAAxkBAAEc6YRp1g1Hs3dImubILNBijx9Lc-5MYgACiRIAAvvIyFT3g23-b9WjpjsE"
+FAILED_STICKER = "CAACAgUAAxkBAAEc6Ypp1g3oUEly079a3JebtyoYO8zUCQACryEAAkcLsFbGcJe3XAXz-zsE"
+
+# thread pool (multiple download)
 executor = ThreadPoolExecutor(max_workers=5)
 
-DOWNLOAD_STICKER = "CAACAgIAAxkBAAEc4N1p1LTZmb8i6oASRfW-ZMKWFgYSNwACLAADJHFiGsUg5gPvePzkOwQ"
-UPLOAD_STICKER = "CAACAgUAAxkBAAEc4OJp1LWYEjUSwApZlfkeg71X8fF98QACgQgAAngBKFSg3YsqMnYcsTsE"
-COMPLETE_STICKER = "CAACAgUAAxkBAAEc6YRp1g1Hs3dImubILNBijx9Lc-5MYgACiRIAAvvIyFT3g23-b9WjpjsE"
-DELETE_STICKER = "CAACAgUAAxkBAAEc6Ypp1g3oUEly079a3JebtyoYO8zUCQACryEAAkcLsFbGcJe3XAXz-zsE"
+
+# auto delete
+def auto_delete(chat_id, msg_ids):
+    time.sleep(3600)
+    for msg in msg_ids:
+        try:
+            bot.delete_message(chat_id, msg)
+        except:
+            pass
 
 
+# start message
 @bot.message_handler(commands=['start'])
 def start(message):
-    bot.reply_to(
-        message,
-        "Hello 🙋‍♂️\n\n"
-        "📥 Instagram Downloader Bot 📥\n\n"
-        "➪ Send Instagram Reel/Post/Story link 🖇\n"
-        "➪ ⚡ Fast Download\n"
-        "➪ ⏱ Auto delete after 1 hour\n\n"
-        "Developer : 𝐕𝐊 👨🏻‍💻"
-    )
+    text = """Hello 🙋‍♂️
+
+📥 Instagram Reel Downloader Bot 📥
+
+➪ Send Instagram Reel link 🖇
+➪ ⚡ Fast Download
+➪ ⏱ Auto delete after 1 hour
+
+Developer : 𝐕𝐊 👨🏻‍💻
+"""
+    bot.send_message(message.chat.id, text)
 
 
-def auto_delete(chat_id, message_id):
-    time.sleep(3600)
+# download function
+def process_download(message, url):
+
     try:
-        bot.delete_message(chat_id, message_id)
-        bot.send_sticker(chat_id, DELETE_STICKER)
-        bot.send_message(chat_id, "🗑 Automatic Delete After 1 Hour 🫂")
-    except:
-        pass
+        bot.send_sticker(message.chat.id, DOWNLOADING_STICKER)
+        downloading_msg = bot.send_message(message.chat.id, "📥 Downloading Reel...")
 
-
-def download_instagram(url, chat_id):
-    try:
-        download_sticker = bot.send_sticker(chat_id, DOWNLOAD_STICKER)
-        progress = bot.send_message(chat_id, "📥 Downloading...")
-
-        unique = str(int(time.time()))
+        unique = str(uuid.uuid4())
 
         ydl_opts = {
-            'outtmpl': f'insta_{unique}_%(index)s.%(ext)s',
             'format': 'best',
+            'outtmpl': f'insta_{unique}.mp4',
             'quiet': True,
-            'nocheckcertificate': True,
+            'noplaylist': True,
             'retries': 10,
             'fragment_retries': 10,
-            'noplaylist': True,
+            'nocheckcertificate': True,
+            'ignoreerrors': True,
+            'sleep_interval': 2,
+            'max_sleep_interval': 5,
             'http_headers': {
                 'User-Agent': 'Mozilla/5.0',
                 'Referer': 'https://www.instagram.com/'
@@ -67,69 +73,53 @@ def download_instagram(url, chat_id):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.extract_info(url, download=True)
 
-        bot.delete_message(chat_id, progress.message_id)
+        file_name = f"insta_{unique}.mp4"
 
-        bot.send_sticker(chat_id, COMPLETE_STICKER)
-        upload_sticker = bot.send_sticker(chat_id, UPLOAD_STICKER)
+        if not os.path.exists(file_name):
+            bot.send_sticker(message.chat.id, FAILED_STICKER)
+            bot.send_message(message.chat.id, "❌ Download failed")
+            return
 
-        caption = "Download by @inssavetome_bot\nAutomatic Delete After 1 Hour 🫂"
+        sent_video = bot.send_video(
+            message.chat.id,
+            open(file_name, 'rb'),
+            caption="Downloaded by @inssavetome_bot\nAutomatic Delete After 1 Hour 🫂"
+        )
 
-        files = []
+        os.remove(file_name)
 
-        for file in os.listdir():
-            if file.startswith(f"insta_{unique}"):
-                files.append(file)
+        msg_ids = [
+            message.message_id,
+            downloading_msg.message_id,
+            sent_video.message_id
+        ]
 
-        files.sort()
-
-        sent_messages = []
-
-        for file in files:
-            with open(file, 'rb') as f:
-
-                if file.endswith(".mp4"):
-                    msg = bot.send_video(chat_id, f, caption=caption)
-
-                elif file.endswith(".jpg") or file.endswith(".jpeg") or file.endswith(".png"):
-                    msg = bot.send_photo(chat_id, f, caption=caption)
-
-                else:
-                    continue
-
-                sent_messages.append(msg)
-
-            os.remove(file)
-
-        bot.delete_message(chat_id, upload_sticker.message_id)
-        bot.delete_message(chat_id, download_sticker.message_id)
-
-        for msg in sent_messages:
-            threading.Thread(
-                target=auto_delete,
-                args=(chat_id, msg.message_id)
-            ).start()
-
-        if not sent_messages:
-            bot.send_message(chat_id, "❌ No media found")
+        threading.Thread(
+            target=auto_delete,
+            args=(message.chat.id, msg_ids)
+        ).start()
 
     except Exception as e:
-        print("ERROR:", e)
-        bot.send_message(chat_id, "❌ Download failed")
+        bot.send_sticker(message.chat.id, FAILED_STICKER)
+        bot.send_message(message.chat.id, "❌ Download failed")
+        print(e)
 
 
-@bot.message_handler(func=lambda message: True)
-def main(message):
-
+# message handler
+@bot.message_handler(func=lambda m: True)
+def download(message):
     url = message.text.strip()
 
-    if "?" in url:
-        url = url.split("?")[0]
+    if "instagram.com" not in url:
+        bot.send_message(message.chat.id, "Send Instagram link")
+        return
 
-    if "instagram.com" in url:
-        executor.submit(download_instagram, url, message.chat.id)
-    else:
-        bot.reply_to(message, "❌ Send Instagram link only")
+    if "/stories/" in url:
+        bot.send_message(message.chat.id, "❌ Story download not supported")
+        return
+
+    executor.submit(process_download, message, url)
 
 
-print("Bot running...")
+print("Bot Running...")
 bot.infinity_polling()
