@@ -14,14 +14,12 @@ if not BOT_TOKEN:
 bot = telebot.TeleBot(BOT_TOKEN)
 executor = ThreadPoolExecutor(max_workers=5)
 
-# Stickers
 DOWNLOAD_STICKER = "CAACAgIAAxkBAAEc4N1p1LTZmb8i6oASRfW-ZMKWFgYSNwACLAADJHFiGsUg5gPvePzkOwQ"
 UPLOAD_STICKER = "CAACAgUAAxkBAAEc4OJp1LWYEjUSwApZlfkeg71X8fF98QACgQgAAngBKFSg3YsqMnYcsTsE"
 COMPLETE_STICKER = "CAACAgUAAxkBAAEc6YRp1g1Hs3dImubILNBijx9Lc-5MYgACiRIAAvvIyFT3g23-b9WjpjsE"
 DELETE_STICKER = "CAACAgUAAxkBAAEc6Ypp1g3oUEly079a3JebtyoYO8zUCQACryEAAkcLsFbGcJe3XAXz-zsE"
 
 
-# Start
 @bot.message_handler(commands=['start'])
 def start(message):
     bot.reply_to(
@@ -35,7 +33,6 @@ def start(message):
     )
 
 
-# Auto delete
 def auto_delete(chat_id, message_id):
     time.sleep(3600)
     try:
@@ -46,7 +43,6 @@ def auto_delete(chat_id, message_id):
         pass
 
 
-# Download
 def download_instagram(url, chat_id):
     try:
         download_sticker = bot.send_sticker(chat_id, DOWNLOAD_STICKER)
@@ -65,11 +61,6 @@ def download_instagram(url, chat_id):
             'http_headers': {
                 'User-Agent': 'Mozilla/5.0',
                 'Referer': 'https://www.instagram.com/'
-            },
-            'extractor_args': {
-                'instagram': {
-                    'skip': ['dash', 'hls']
-                }
             }
         }
 
@@ -98,8 +89,12 @@ def download_instagram(url, chat_id):
 
                 if file.endswith(".mp4"):
                     msg = bot.send_video(chat_id, f, caption=caption)
-                else:
+
+                elif file.endswith(".jpg") or file.endswith(".jpeg") or file.endswith(".png"):
                     msg = bot.send_photo(chat_id, f, caption=caption)
+
+                else:
+                    continue
 
                 sent_messages.append(msg)
 
@@ -114,12 +109,14 @@ def download_instagram(url, chat_id):
                 args=(chat_id, msg.message_id)
             ).start()
 
+        if not sent_messages:
+            bot.send_message(chat_id, "❌ No media found")
+
     except Exception as e:
         print("ERROR:", e)
         bot.send_message(chat_id, "❌ Download failed")
 
 
-# Handler
 @bot.message_handler(func=lambda message: True)
 def main(message):
 
