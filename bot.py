@@ -9,8 +9,8 @@ bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
 # =========================
 # CHANNEL SETTINGS
 # =========================
-SOURCE_CHANNEL = -1001111111111
-TARGET_CHANNEL = -1002222222222
+SOURCE_CHANNEL = 1003590340901
+TARGET_CHANNEL = -1003932803968
 
 # =========================
 # ADMIN
