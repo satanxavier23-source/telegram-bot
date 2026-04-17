@@ -6,15 +6,27 @@ BOT_TOKEN = os.getenv("BOT_TOKEN") or "YOUR_BOT_TOKEN"
 
 bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
 
+# =========================
+# CHANNEL SETTINGS
+# =========================
 SOURCE_CHANNEL = -1003590340901
 TARGET_CHANNEL = -1003932803968
 
+# =========================
+# ADMIN SETTINGS
+# =========================
 ADMIN_IDS = [6630347046, 7194569468]
 
+# =========================
+# CAPTION SETTINGS
+# =========================
 CAPTION_TEXT = "കിന്നാരത്തുമ്പികൾ പ്രീമിയം ❤️📈🔥"
 caption_enabled = True
 
 
+# =========================
+# HELPERS
+# =========================
 def is_admin(user_id):
     return user_id in ADMIN_IDS
 
@@ -26,6 +38,9 @@ def keyboard():
     return markup
 
 
+# =========================
+# START
+# =========================
 @bot.message_handler(commands=["start"])
 def start(message):
     if not is_admin(message.from_user.id):
@@ -39,6 +54,9 @@ def start(message):
     )
 
 
+# =========================
+# BUTTONS
+# =========================
 @bot.message_handler(func=lambda m: is_admin(m.from_user.id) and m.text == "🟢 Caption ON")
 def caption_on(message):
     global caption_enabled
@@ -57,28 +75,33 @@ def caption_off(message):
 def status(message):
     bot.reply_to(
         message,
-        f"Source: {SOURCE_CHANNEL}\n"
-        f"Target: {TARGET_CHANNEL}\n"
-        f"Caption: {'ON ✅' if caption_enabled else 'OFF ❌'}"
+        f"Source Channel: {SOURCE_CHANNEL}\n"
+        f"Target Channel: {TARGET_CHANNEL}\n"
+        f"Caption: {'ON ✅' if caption_enabled else 'OFF ❌'}\n"
+        f"Caption Text: {CAPTION_TEXT}"
     )
 
 
 @bot.message_handler(func=lambda m: is_admin(m.from_user.id) and m.text == "🧪 Test Target")
 def test_target(message):
     try:
-        bot.send_message(TARGET_CHANNEL, "Target test ok ✅")
+        bot.send_message(TARGET_CHANNEL, "Test message ✅")
         bot.reply_to(message, "Target channel working ✅")
     except Exception as e:
         bot.reply_to(message, f"Target failed ❌\n{e}")
         print("TARGET ERROR:", e)
 
 
+# =========================
+# AUTO FORWARD
+# =========================
 @bot.channel_post_handler(func=lambda m: True)
 def auto_forward(message):
     try:
-        print("CHANNEL POST RECEIVED ✅")
+        print("POST RECEIVED ✅")
         print("CHAT ID:", message.chat.id)
         print("TYPE:", message.content_type)
+        print("MESSAGE ID:", message.message_id)
 
         if message.chat.id != SOURCE_CHANNEL:
             print("Ignored: not source channel")
@@ -89,23 +112,22 @@ def auto_forward(message):
             if caption_enabled:
                 bot.send_message(TARGET_CHANNEL, CAPTION_TEXT)
             else:
-                bot.copy_message(TARGET_CHANNEL, SOURCE_CHANNEL, message.message_id)
-
-        # MEDIA / DOCUMENT / MOST OTHER POSTS
-        else:
-            if caption_enabled:
-                bot.copy_message(
-                    TARGET_CHANNEL,
-                    SOURCE_CHANNEL,
-                    message.message_id,
-                    caption=CAPTION_TEXT
-                )
-            else:
-                bot.copy_message(
+                bot.forward_message(
                     TARGET_CHANNEL,
                     SOURCE_CHANNEL,
                     message.message_id
                 )
+
+        # PHOTO / VIDEO / DOC / GIF / STICKER / MOST MEDIA
+        else:
+            bot.forward_message(
+                TARGET_CHANNEL,
+                SOURCE_CHANNEL,
+                message.message_id
+            )
+
+            if caption_enabled:
+                bot.send_message(TARGET_CHANNEL, CAPTION_TEXT)
 
         print("FORWARD SUCCESS ✅")
 
@@ -119,4 +141,9 @@ def auto_forward(message):
 
 
 print("Bot Running ✅")
-bot.infinity_polling(skip_pending=True, allowed_updates=["message", "channel_post"])
+bot.infinity_polling(
+    timeout=60,
+    long_polling_timeout=60,
+    skip_pending=True,
+    allowed_updates=["message", "channel_post"]
+)
