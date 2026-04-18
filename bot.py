@@ -19,44 +19,19 @@ def clean_caption(text: str):
     if not text:
         return None
 
-    lines = text.splitlines()
+    lines = [x.strip() for x in text.splitlines() if x.strip()]
 
     for line in lines:
-        line = line.strip()
         low = line.lower()
-
-        # വേണ്ട line മാത്രം പിടിക്കും
         if "video call" in low:
-            cleaned = line
-            cleaned = cleaned.replace("Name »", "")
-            cleaned = cleaned.replace("Name»", "")
-            cleaned = cleaned.replace("name »", "")
-            cleaned = cleaned.replace("name»", "")
-            cleaned = cleaned.strip(" -–—:|")
-            cleaned = cleaned.strip()
+            return line
 
-            return cleaned if cleaned else None
-
-    return None
-
-
-def send_clean_text_only():
     return None
 
 
 @bot.message_handler(commands=["start"])
 def start_cmd(message):
-    bot.reply_to(
-        message,
-        "🤖 Bot running ✅\n"
-        f"Source: {SOURCE_CHAT_ID}\n"
-        f"Target: {TARGET_CHAT_ID}"
-    )
-
-
-@bot.message_handler(commands=["id"])
-def id_cmd(message):
-    bot.reply_to(message, f"Chat ID: {message.chat.id}")
+    bot.reply_to(message, "Bot running ✅")
 
 
 @bot.channel_post_handler(content_types=[
@@ -70,10 +45,7 @@ def id_cmd(message):
 ])
 def handle_channel_post(message):
     try:
-        print(f"📥 POST | chat={message.chat.id} | type={message.content_type} | msg={message.message_id}")
-
         if message.chat.id != SOURCE_CHAT_ID:
-            print("⏩ Skipped: not source channel")
             return
 
         original_text = message.caption or message.text or ""
@@ -131,8 +103,6 @@ def handle_channel_post(message):
             if new_caption:
                 bot.send_message(TARGET_CHAT_ID, new_caption)
                 print("✅ Text sent")
-            else:
-                print("⏩ Text skipped: no matching clean caption")
 
     except ApiTelegramException as e:
         print("❌ Telegram API Error:", e)
