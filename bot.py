@@ -12,11 +12,9 @@ from telegram.ext import (
 )
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-FORCE_JOIN_CHANNEL = os.getenv("FORCE_JOIN_CHANNEL", "")   # example: mychannel
+FORCE_JOIN_CHANNEL = os.getenv("FORCE_JOIN_CHANNEL", "")
 AUTO_FORWARD_CHANNEL_ID = -1003932803968
 AUTO_DELETE_SECONDS = 3600
-
-API_BASE = "https://teraboxvideodownloader.nepcoderdevs.workers.dev/?url="
 
 TERABOX_DOMAINS = [
     "terabox.com",
@@ -26,9 +24,16 @@ TERABOX_DOMAINS = [
     "freeterabox.com",
     "4funbox.com",
     "mirrobox.com",
+    "terasharelink.com",
+    "terasharefile.com",
 ]
 
 URL_REGEX = re.compile(r'https?://\S+')
+
+API_LIST = [
+    "https://teraboxvideodownloader.nepcoderdevs.workers.dev/?url={url}",
+    "https://teraboxapi2.onrender.com/api?url={url}",
+]
 
 
 def extract_url(text: str) -> str | None:
@@ -59,42 +64,53 @@ async def is_user_joined(context: ContextTypes.DEFAULT_TYPE, user_id: int) -> bo
 
 
 async def fetch_direct_link(url: str) -> tuple[str | None, str | None]:
-    api_url = API_BASE + url
     timeout = aiohttp.ClientTimeout(total=30)
-
     headers = {
         "User-Agent": "Mozilla/5.0"
     }
 
-    try:
-        async with aiohttp.ClientSession(timeout=timeout, headers=headers) as session:
-            async with session.get(api_url) as resp:
-                raw_text = await resp.text()
+    for api_template in API_LIST:
+        api_url = api_template.format(url=url)
 
-                if resp.status != 200:
-                    return None, f"API HTTP Error: {resp.status}"
+        try:
+            async with aiohttp.ClientSession(timeout=timeout, headers=headers) as session:
+                async with session.get(api_url) as resp:
+                    raw_text = await resp.text()
 
-                try:
-                    data = await resp.json(content_type=None)
-                except Exception:
-                    return None, f"Invalid API response:\n{raw_text[:300]}"
+                    if resp.status != 200:
+                        print(f"API failed: {api_url} -> HTTP {resp.status}")
+                        continue
 
-                direct_link = (
-                    data.get("download")
-                    or data.get("download_url")
-                    or data.get("url")
-                    or data.get("direct_link")
-                )
+                    try:
+                        data = await resp.json(content_type=None)
+                    except Exception:
+                        print(f"Invalid JSON from: {api_url}")
+                        print(raw_text[:300])
+                        continue
 
-                if direct_link:
-                    return direct_link, None
+                    direct_link = (
+                        data.get("download")
+                        or data.get("download_url")
+                        or data.get("url")
+                        or data.get("direct_link")
+                        or data.get("video")
+                    )
 
-                return None, f"Download link not found.\n{str(data)[:300]}"
+                    if direct_link:
+                        print(f"Success API: {api_url}")
+                        return direct_link, None
 
-    except asyncio.TimeoutError:
-        return None, "API timeout"
-    except Exception as e:
-        return None, f"Request failed: {str(e)[:300]}"
+                    print(f"No link found from: {api_url}")
+                    print(str(data)[:300])
+
+        except asyncio.TimeoutError:
+            print(f"Timeout API: {api_url}")
+            continue
+        except Exception as e:
+            print(f"Request failed: {api_url} -> {str(e)}")
+            continue
+
+    return None, "All API failed ❌"
 
 
 async def auto_delete_message(bot, chat_id, message_id, wait_time):
@@ -169,6 +185,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 from_chat_id=chat_id,
                 message_id=sent.message_id
             )
+            print("Auto forward success")
         except Exception as e:
             print("Auto forward error:", e)
 
